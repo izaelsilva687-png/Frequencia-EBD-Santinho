@@ -20,7 +20,7 @@ TURMAS = [
     "4. JUNIORES",
     "5. PRÉ-ADOLESCENTES",
     "6. VENCEDORES POR CRISTO",
-    "7. LÍRIOS DO VALE,
+    "7. LÍRIOS DO VALE",
 ]
 
 # -----------------------------------------------------------------------------
