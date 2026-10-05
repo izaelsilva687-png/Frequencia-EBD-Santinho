@@ -31,7 +31,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 # 1. COLE O LINK DA SUA PLANILHA AQUI:
 URL_PLANILHA = (
-    "https://docs.google.com/spreadsheets/d/1jeR_pPWlkss_4O7lEumQbF6ajTOHAN4VEHTkvVEqQyw/edit?usp=sharing"
+    "https://docs.google.com/spreadsheets/d/1jeR_pPWlkss_4O7lEumQbF6ajTOHAN4VEHTkvVEqQyw/edit"
 )
 
 
