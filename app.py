@@ -491,7 +491,7 @@ with aba_cadastro:
       st.success("Aluno removido com sucesso!")
       st.rerun()
 
-        st.success("Aluno removido com sucesso!")
-        st.rerun()
+      st.success("Aluno removido com sucesso!")
+      st.rerun()
     else:
       st.info("Nenhum aluno cadastrado para remover.")
