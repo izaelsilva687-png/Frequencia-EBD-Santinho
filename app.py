@@ -28,23 +28,9 @@ TURMAS = [
 # -----------------------------------------------------------------------------
 # Inicialização de alunos demonstrativos (caso não haja cadastro prévio)
 if "db_alunos" not in st.session_state:
-  st.session_state["db_alunos"] = pd.DataFrame([
-      {"id": 1, "nome": "João Silva", "turma": "4. Jovens", "ativo": True},
-      {"id": 2, "nome": "Maria Santos", "turma": "4. Jovens", "ativo": True},
-      {"id": 3, "nome": "Pedro Oliveira", "turma": "4. Jovens", "ativo": True},
-      {
-          "id": 4,
-          "nome": "Lucas Lima",
-          "turma": "5. Adultos (Classe 1)",
-          "ativo": True,
-      },
-      {
-          "id": 5,
-          "nome": "Ana Costa",
-          "turma": "5. Adultos (Classe 1)",
-          "ativo": True,
-      },
-  ])
+  st.session_state["db_alunos"] = pd.DataFrame(
+      columns=["id", "nome", "turma", "ativo"]
+  )
 
 if "db_chamadas" not in st.session_state:
   st.session_state["db_chamadas"] = pd.DataFrame(
