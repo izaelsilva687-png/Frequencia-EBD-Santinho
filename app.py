@@ -5,7 +5,7 @@ import streamlit as st
 
 # Configuração da Página
 st.set_page_config(
-    page_title="Frequência EBD — Gestão da Escola Dominical",
+    page_title="Frequência EBD — Gestão da Escola Dominical - AD Santinho",
     page_icon="📖",
     layout="wide",
 )
@@ -45,7 +45,7 @@ if "db_resumo_turma" not in st.session_state:
 # -----------------------------------------------------------------------------
 # CABEÇALHO DO APLICATIVO
 # -----------------------------------------------------------------------------
-st.title("📖 Sistema de Frequência da Escola Dominical")
+st.title("📖 Sistema de Frequência da Escola Dominical - AD Santinho")
 st.caption(
     "Gestão em tempo real das 7 turmas da EBD — Chamada Nominal e Relatórios"
     " Consolidados"
@@ -69,7 +69,7 @@ with aba_chamada:
   with col_t1:
     turma_prof = st.selectbox("Selecione a sua Turma:", TURMAS)
   with col_t2:
-    data_aula = st.date_input("Data da Aula:", datetime.date.today())
+    data_aula = st.date_input("Data da Aula:", datetime.date.today(),format="DD/MM/YYYY")
 
   st.markdown("---")
 
@@ -127,7 +127,7 @@ with aba_chamada:
       )
 
       if btn_salvar:
-        str_data = data_aula.strftime("%Y-%m-%d")
+        str_data = data_aula.strftime("%d-%m-%Y")
 
         # 1. Limpar chamada anterior da mesma data/turma se houver sobrescrita
         st.session_state["db_chamadas"] = st.session_state["db_chamadas"][
@@ -193,7 +193,7 @@ with aba_relatorio_domingo:
   col_r1, col_r2 = st.columns(2)
   with col_r1:
     filtro_data = st.date_input(
-        "Data do Domingo:", datetime.date.today(), key="filtro_data_rel"
+        "Data do Domingo:", datetime.date.today(), format="DD/MM/YYYY", key="filtro_data_rel"
     )
   with col_r2:
     filtro_turma = st.selectbox(
@@ -201,7 +201,7 @@ with aba_relatorio_domingo:
         ["🌟 CONSOLIDADO GERAL (Todas as 7 Turmas)"] + TURMAS,
     )
 
-  str_filtro_data = filtro_data.strftime("%Y-%m-%d")
+  str_filtro_data = filtro_data.strftime("%d-%m-%Y")
 
   # Obter dados de chamadas e resumos para a data
   df_ch_data = st.session_state["db_chamadas"][
