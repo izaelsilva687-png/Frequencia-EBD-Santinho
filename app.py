@@ -29,11 +29,18 @@ TURMAS = [
 # -----------------------------------------------------------------------------
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# 1. COLE O LINK DA SUA PLANILHA AQUI:
+URL_PLANILHA = (
+    "https://docs.google.com/spreadsheets/d/1jeR_pPWlkss_4O7lEumQbF6ajTOHAN4VEHTkvVEqQyw/edit?usp=sharing"
+)
 
+
+# 2. FUNÇÃO QUE CARREGA OS DADOS:
 def carregar_dados():
   """Lê as abas da planilha no Google Drive"""
   try:
-    df_alunos = conn.read(worksheet="Alunos", ttl=0)
+    # Lê a aba Alunos usando o link direto
+    df_alunos = conn.read(spreadsheet=URL_PLANILHA, worksheet="Alunos", ttl=0)
     if df_alunos is None or df_alunos.empty:
       df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
     else:
@@ -45,7 +52,10 @@ def carregar_dados():
     df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
 
   try:
-    df_chamadas = conn.read(worksheet="Chamadas", ttl=0)
+    # Lê a aba Chamadas usando o link direto
+    df_chamadas = conn.read(
+        spreadsheet=URL_PLANILHA, worksheet="Chamadas", ttl=0
+    )
     if df_chamadas is None or df_chamadas.empty:
       df_chamadas = pd.DataFrame(
           columns=["data", "turma", "aluno_id", "nome", "presente"]
@@ -60,7 +70,8 @@ def carregar_dados():
     )
 
   try:
-    df_resumo = conn.read(worksheet="Resumo", ttl=0)
+    # Lê a aba Resumo usando o link direto
+    df_resumo = conn.read(spreadsheet=URL_PLANILHA, worksheet="Resumo", ttl=0)
     if df_resumo is None or df_resumo.empty:
       df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
   except Exception:
