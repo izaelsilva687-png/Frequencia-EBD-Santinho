@@ -15,13 +15,13 @@ st.set_page_config(
 # LISTA DAS 7 TURMAS DA EBD
 # -----------------------------------------------------------------------------
 TURMAS = [
-    "1. OFICIAIS",
-    "2. LÍRIOS DO VALE",
-    "3. VENCEDORES POR CRISTO",
-    "4. PRÉ-ADOLESCENTES",
-    "5. JUNIORES",
-    "6. JARDIM DE INFÂNCIA",
-    "7. BERÇÁRIO",
+    "OFICIAIS",
+    "LÍRIOS DO VALE",
+    "VENCEDORES POR CRISTO",
+    "PRÉ-ADOLESCENTES",
+    "JUNIORES",
+    "JARDIM DE INFÂNCIA",
+    "BERÇÁRIO",
 ]
 
 # -----------------------------------------------------------------------------
