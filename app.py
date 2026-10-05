@@ -24,37 +24,35 @@ TURMAS = [
     "BERÇÁRIO",
 ]
 
-# -----------------------------------------------------------------------------
-# CONEXÃO COM O GOOGLE SHEETS
-# -----------------------------------------------------------------------------
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-# 1. COLE O LINK DA SUA PLANILHA AQUI:
-URL_PLANILHA = "1jeR_pPWlkss_4O7lEumQbF6ajTOHAN4VEHTkvVEqQyw"
+# =============================================================================
+# CONEXÃO DIRETA VIA PANDAS (SEM NECESSIDADE DE SECRETS)
+# =============================================================================
+# Cole Apenas o ID da sua planilha abaixo (entre as aspas):
+SPREADSHEET_ID = "1jeR_pPWlkss_4O7lEumQbF6ajTOHAN4VEHTkvVEqQyw"
 
 
-# 2. FUNÇÃO QUE CARREGA OS DADOS:
 def carregar_dados():
-  """Lê as abas da planilha no Google Drive"""
+  """Lê as abas da planilha pública do Google Sheets diretamente via Pandas"""
   try:
-    # Lê a aba Alunos usando o link direto
-    df_alunos = conn.read(spreadsheet=URL_PLANILHA, worksheet="Alunos", ttl=0)
-    if df_alunos is None or df_alunos.empty:
+    url_alunos = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Alunos"
+    df_alunos = pd.read_csv(url_alunos)
+    if df_alunos.empty or "nome" not in df_alunos.columns:
       df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
     else:
       df_alunos["ativo"] = (
           df_alunos["ativo"].astype(str).str.upper().isin(["TRUE", "1"])
       )
   except Exception as e:
-    st.error(f"⚠️ Erro ao ler a aba 'Alunos' do Google Sheets: {e}")
+    st.error(
+        f"⚠️ Erro ao ler a aba 'Alunos': {e}. Verifique se a planilha está"
+        " compartilhada como 'Qualquer pessoa com o link'."
+    )
     df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
 
   try:
-    # Lê a aba Chamadas usando o link direto
-    df_chamadas = conn.read(
-        spreadsheet=URL_PLANILHA, worksheet="Chamadas", ttl=0
-    )
-    if df_chamadas is None or df_chamadas.empty:
+    url_chamadas = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Chamadas"
+    df_chamadas = pd.read_csv(url_chamadas)
+    if df_chamadas.empty or "presente" not in df_chamadas.columns:
       df_chamadas = pd.DataFrame(
           columns=["data", "turma", "aluno_id", "nome", "presente"]
       )
@@ -68,16 +66,17 @@ def carregar_dados():
     )
 
   try:
-    # Lê a aba Resumo usando o link direto
-    df_resumo = conn.read(spreadsheet=URL_PLANILHA, worksheet="Resumo", ttl=0)
-    if df_resumo is None or df_resumo.empty:
+    url_resumo = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Resumo"
+    df_resumo = pd.read_csv(url_resumo)
+    if df_resumo.empty:
       df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
   except Exception:
     df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
 
   return df_alunos, df_chamadas, df_resumo
 
-# Carrega dados do Google Sheets
+
+# Carrega os dados da planilha
 df_alunos, df_chamadas, df_resumo_turma = carregar_dados()
 
 # -----------------------------------------------------------------------------
