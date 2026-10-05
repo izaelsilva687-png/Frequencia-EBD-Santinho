@@ -40,7 +40,8 @@ def carregar_dados():
       df_alunos["ativo"] = (
           df_alunos["ativo"].astype(str).str.upper().isin(["TRUE", "1"])
       )
-  except Exception:
+  except Exception as e:
+    st.error(f"⚠️ Erro ao ler a aba 'Alunos' do Google Sheets: {e}")
     df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
 
   try:
@@ -66,7 +67,6 @@ def carregar_dados():
     df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
 
   return df_alunos, df_chamadas, df_resumo
-
 
 # Carrega dados do Google Sheets
 df_alunos, df_chamadas, df_resumo_turma = carregar_dados()
