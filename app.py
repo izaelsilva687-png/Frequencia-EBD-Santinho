@@ -401,3 +401,97 @@ with aba_cadastro:
       hide_index=True,
       use_container_width=True,
   )
+    st.markdown("---")
+    st.subheader("✏️ Editar Aluno ou Mudar de Turma")
+
+    df_alunos_existentes = st.session_state["db_alunos"][
+        st.session_state["db_alunos"]["ativo"] == True
+    ]
+
+    if not df_alunos_existentes.empty:
+      # Menu com os alunos cadastrados
+      opcoes_alunos_edit = {
+          row["id"]: f"{row['nome']} — {row['turma']}"
+          for _, row in df_alunos_existentes.iterrows()
+      }
+
+      aluno_id_edit = st.selectbox(
+          "Selecione o Aluno que deseja editar:",
+          options=list(opcoes_alunos_edit.keys()),
+          format_func=lambda x: opcoes_alunos_edit[x],
+          key="select_edit_aluno",
+      )
+
+      # Busca os dados atuais do aluno selecionado
+      aluno_atual = df_alunos_existentes[
+          df_alunos_existentes["id"] == aluno_id_edit
+      ].iloc[0]
+
+      with st.form(key=f"form_edit_aluno_{aluno_id_edit}"):
+        col_ed1, col_ed2 = st.columns(2)
+        with col_ed1:
+          novo_nome_edit = st.text_input(
+              "Nome do Aluno:", value=aluno_atual["nome"]
+          )
+        with col_ed2:
+          index_turma_atual = (
+              TURMAS.index(aluno_atual["turma"])
+              if aluno_atual["turma"] in TURMAS
+              else 0
+          )
+          nova_turma_edit = st.selectbox(
+              "Selecione a Nova Turma:", TURMAS, index=index_turma_atual
+          )
+
+        btn_salvar_edit = st.form_submit_button("💾 Salvar Alterações")
+
+        if btn_salvar_edit:
+          # Atualiza nome e turma no banco de dados
+          st.session_state["db_alunos"].loc[
+              st.session_state["db_alunos"]["id"] == aluno_id_edit, "nome"
+          ] = novo_nome_edit.strip()
+          st.session_state["db_alunos"].loc[
+              st.session_state["db_alunos"]["id"] == aluno_id_edit, "turma"
+          ] = nova_turma_edit
+
+          st.success("Alterações salvas com sucesso!")
+          st.rerun()
+    else:
+      st.info("Nenhum aluno cadastrado para editar.")
+        st.markdown("---")
+    st.subheader("🗑️ Excluir Aluno Cadastrado")
+
+    df_alunos_existentes = st.session_state["db_alunos"][
+        st.session_state["db_alunos"]["ativo"] == True
+    ]
+
+    if not df_alunos_existentes.empty:
+      col_ex1, col_ex2 = st.columns([2, 1])
+
+      with col_ex1:
+        # Cria um menu com o formato "Nome — Turma"
+        opcoes_alunos = {
+            row["id"]: f"{row['nome']} — {row['turma']}"
+            for _, row in df_alunos_existentes.iterrows()
+        }
+        aluno_id_selecionado = st.selectbox(
+            "Selecione o Aluno que deseja remover:",
+            options=list(opcoes_alunos.keys()),
+            format_func=lambda x: opcoes_alunos[x],
+            key="select_excluir_aluno",
+        )
+
+      with col_ex2:
+        st.write("")
+        st.write("")
+        btn_excluir = st.button("❌ Excluir Aluno", use_container_width=True)
+
+      if btn_excluir:
+        # Remove o aluno do cadastro
+        st.session_state["db_alunos"] = st.session_state["db_alunos"][
+            st.session_state["db_alunos"]["id"] != aluno_id_selecionado
+        ]
+        st.success("Aluno removido com sucesso!")
+        st.rerun()
+    else:
+      st.info("Nenhum aluno cadastrado para remover.")
