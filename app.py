@@ -14,13 +14,13 @@ st.set_page_config(
 # LISTA DAS 7 TURMAS DA EBD
 # -----------------------------------------------------------------------------
 TURMAS = [
-    "1. Berçário / Maternal",
-    "2. Primários / Juniores",
-    "3. Adolescentes",
-    "4. Jovens",
-    "5. Adultos (Classe 1)",
-    "6. Adultos (Classe 2)",
-    "7. Casais",
+    "1. OFICIAIS",
+    "2. BERÇARIO",
+    "3. JARDIM DE INFÂNCIA",
+    "4. JUNIORES",
+    "5. PRÉ-ADOLESCENTES",
+    "6. VENCEDORES POR CRISTO",
+    "7. LÍRIOS DO VALE,
 ]
 
 # -----------------------------------------------------------------------------
