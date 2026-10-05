@@ -2,10 +2,11 @@ import datetime
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 
 # Configuração da Página
 st.set_page_config(
-    page_title="Frequência EBD — Gestão da Escola Dominical - AD Santinho",
+    page_title="Frequência EBD — Gestão da Escola Dominical",
     page_icon="📖",
     layout="wide",
 )
@@ -15,40 +16,67 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 TURMAS = [
     "1. OFICIAIS",
-    "2. BERÇARIO",
-    "3. JARDIM DE INFÂNCIA",
-    "4. JUNIORES",
-    "5. PRÉ-ADOLESCENTES",
-    "6. VENCEDORES POR CRISTO",
-    "7. LÍRIOS DO VALE",
+    "2. LÍRIOS DO VALE",
+    "3. VENCEDORES POR CRISTO",
+    "4. PRÉ-ADOLESCENTES",
+    "5. JUNIORES",
+    "6. JARDIM DE INFÂNCIA",
+    "7. BERÇÁRIO",
 ]
 
 # -----------------------------------------------------------------------------
-# BANCO DE DADOS EM MEMÓRIA / ARQUIVO LOCAL (Com suporte a Google Sheets)
+# CONEXÃO COM O GOOGLE SHEETS
 # -----------------------------------------------------------------------------
-# Inicialização de alunos demonstrativos (caso não haja cadastro prévio)
-if "db_alunos" not in st.session_state:
-  st.session_state["db_alunos"] = pd.DataFrame(
-      columns=["id", "nome", "turma", "ativo"]
-  )
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-if "db_chamadas" not in st.session_state:
-  st.session_state["db_chamadas"] = pd.DataFrame(
-      columns=["data", "turma", "aluno_id", "nome", "presente"]
-  )
 
-if "db_resumo_turma" not in st.session_state:
-  st.session_state["db_resumo_turma"] = pd.DataFrame(
-      columns=["data", "turma", "visitantes", "oferta"]
-  )
+def carregar_dados():
+  """Lê as abas da planilha no Google Drive"""
+  try:
+    df_alunos = conn.read(worksheet="Alunos", ttl=0)
+    if df_alunos is None or df_alunos.empty:
+      df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
+    else:
+      df_alunos["ativo"] = (
+          df_alunos["ativo"].astype(str).str.upper().isin(["TRUE", "1"])
+      )
+  except Exception:
+    df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
+
+  try:
+    df_chamadas = conn.read(worksheet="Chamadas", ttl=0)
+    if df_chamadas is None or df_chamadas.empty:
+      df_chamadas = pd.DataFrame(
+          columns=["data", "turma", "aluno_id", "nome", "presente"]
+      )
+    else:
+      df_chamadas["presente"] = (
+          df_chamadas["presente"].astype(str).str.upper().isin(["TRUE", "1"])
+      )
+  except Exception:
+    df_chamadas = pd.DataFrame(
+        columns=["data", "turma", "aluno_id", "nome", "presente"]
+    )
+
+  try:
+    df_resumo = conn.read(worksheet="Resumo", ttl=0)
+    if df_resumo is None or df_resumo.empty:
+      df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
+  except Exception:
+    df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
+
+  return df_alunos, df_chamadas, df_resumo
+
+
+# Carrega dados do Google Sheets
+df_alunos, df_chamadas, df_resumo_turma = carregar_dados()
 
 # -----------------------------------------------------------------------------
 # CABEÇALHO DO APLICATIVO
 # -----------------------------------------------------------------------------
-st.title("📖 Sistema de Frequência da Escola Dominical - AD Santinho")
+st.title("📖 Sistema de Frequência da Escola Dominical")
 st.caption(
-    "Gestão em tempo real das 7 turmas da EBD — Chamada Nominal e Relatórios"
-    " Consolidados"
+    "Gestão em tempo real das 7 turmas da EBD — Conectado ao Google Sheets"
 )
 
 # NAVEGAÇÃO PRINCIPAL (ABAS)
@@ -69,14 +97,15 @@ with aba_chamada:
   with col_t1:
     turma_prof = st.selectbox("Selecione a sua Turma:", TURMAS)
   with col_t2:
-    data_aula = st.date_input("Data da Aula:", datetime.date.today(),format="DD/MM/YYYY")
+    data_aula = st.date_input(
+        "Data da Aula:", datetime.date.today(), format="DD/MM/YYYY"
+    )
 
   st.markdown("---")
 
-  # Filtrar alunos cadastrados e ativos da turma selecionada
-  df_alunos_turma = st.session_state["db_alunos"][
-      (st.session_state["db_alunos"]["turma"] == turma_prof)
-      & (st.session_state["db_alunos"]["ativo"] == True)
+  # Filtrar alunos da turma selecionada
+  df_alunos_turma = df_alunos[
+      (df_alunos["turma"] == turma_prof) & (df_alunos["ativo"] == True)
   ].sort_values("nome")
 
   if df_alunos_turma.empty:
@@ -93,14 +122,12 @@ with aba_chamada:
         " faltou:"
     )
 
-    # Formulário de Chamada
     with st.form(key=f"form_chamada_{turma_prof}"):
       presencas = {}
       cols_alunos = st.columns(2)
 
       for idx, row in df_alunos_turma.reset_index(drop=True).iterrows():
         col_target = cols_alunos[idx % 2]
-        # Checkbox individual por aluno
         presencas[row["id"]] = col_target.checkbox(
             label=f"👤 **{row['nome']}**", value=True, key=f"aluno_{row['id']}"
         )
@@ -127,31 +154,22 @@ with aba_chamada:
       )
 
       if btn_salvar:
-        str_data = data_aula.strftime("%d-%m-%Y")
+        str_data = data_aula.strftime("%d/%m/%Y")
 
-        # 1. Limpar chamada anterior da mesma data/turma se houver sobrescrita
-        st.session_state["db_chamadas"] = st.session_state["db_chamadas"][
-            ~(
-                (st.session_state["db_chamadas"]["data"] == str_data)
-                & (st.session_state["db_chamadas"]["turma"] == turma_prof)
-            )
+        # Remover registros anteriores da mesma data/turma se houver recálculo
+        df_chamadas_limpas = df_chamadas[
+            ~((df_chamadas["data"] == str_data) & (df_chamadas["turma"] == turma_prof))
+        ]
+        df_resumo_limpo = df_resumo_turma[
+            ~((df_resumo_turma["data"] == str_data) & (df_resumo_turma["turma"] == turma_prof))
         ]
 
-        st.session_state["db_resumo_turma"] = st.session_state[
-            "db_resumo_turma"
-        ][
-            ~(
-                (st.session_state["db_resumo_turma"]["data"] == str_data)
-                & (st.session_state["db_resumo_turma"]["turma"] == turma_prof)
-            )
-        ]
-
-        # 2. Registrar chamadas individuais
+        # Novas chamadas
         novas_chamadas = []
         for aluno_id, esteve_presente in presencas.items():
-          nome_aluno = df_alunos_turma[
-              df_alunos_turma["id"] == aluno_id
-          ]["nome"].values[0]
+          nome_aluno = df_alunos_turma[df_alunos_turma["id"] == aluno_id][
+              "nome"
+          ].values[0]
           novas_chamadas.append({
               "data": str_data,
               "turma": turma_prof,
@@ -160,29 +178,32 @@ with aba_chamada:
               "presente": esteve_presente,
           })
 
-        df_novas = pd.DataFrame(novas_chamadas)
-        st.session_state["db_chamadas"] = pd.concat(
-            [st.session_state["db_chamadas"], df_novas], ignore_index=True
+        df_novas_ch = pd.DataFrame(novas_chamadas)
+        df_chamadas_final = pd.concat(
+            [df_chamadas_limpas, df_novas_ch], ignore_index=True
         )
 
-        # 3. Registrar resumo de oferta/visitantes
         novo_resumo = pd.DataFrame([{
             "data": str_data,
             "turma": turma_prof,
             "visitantes": num_visitantes,
             "oferta": val_oferta,
         }])
-        st.session_state["db_resumo_turma"] = pd.concat(
-            [st.session_state["db_resumo_turma"], novo_resumo],
-            ignore_index=True,
+        df_resumo_final = pd.concat(
+            [df_resumo_limpo, novo_resumo], ignore_index=True
         )
+
+        # Atualiza o Google Sheets
+        conn.update(worksheet="Chamadas", data=df_chamadas_final)
+        conn.update(worksheet="Resumo", data=df_resumo_final)
 
         total_presentes_dia = sum(presencas.values())
         st.success(
-            f"✅ Chamada da turma '{turma_prof}' salva com sucesso! "
-            f"({total_presentes_dia} presentes, {num_visitantes} visitantes e"
-            f" R$ {val_oferta:.2f} de oferta)."
+            f"✅ Chamada da turma '{turma_prof}' referente a {str_data} salva no"
+            f" Google Sheets! ({total_presentes_dia} presentes, {num_visitantes}"
+            f" visitantes e R$ {val_oferta:.2f} de oferta)."
         )
+        st.rerun()
 
 # =============================================================================
 # ABA 2: RELATÓRIO DO DOMINGO (DIREÇÃO)
@@ -193,7 +214,10 @@ with aba_relatorio_domingo:
   col_r1, col_r2 = st.columns(2)
   with col_r1:
     filtro_data = st.date_input(
-        "Data do Domingo:", datetime.date.today(), format="DD/MM/YYYY", key="filtro_data_rel"
+        "Data do Domingo:",
+        datetime.date.today(),
+        format="DD/MM/YYYY",
+        key="filtro_data_rel",
     )
   with col_r2:
     filtro_turma = st.selectbox(
@@ -201,27 +225,19 @@ with aba_relatorio_domingo:
         ["🌟 CONSOLIDADO GERAL (Todas as 7 Turmas)"] + TURMAS,
     )
 
-  str_filtro_data = filtro_data.strftime("%d-%m-%Y")
+  str_filtro_data = filtro_data.strftime("%d/%m/%Y")
 
-  # Obter dados de chamadas e resumos para a data
-  df_ch_data = st.session_state["db_chamadas"][
-      st.session_state["db_chamadas"]["data"] == str_filtro_data
-  ]
-  df_res_data = st.session_state["db_resumo_turma"][
-      st.session_state["db_resumo_turma"]["data"] == str_filtro_data
-  ]
+  df_ch_data = df_chamadas[df_chamadas["data"] == str_filtro_data]
+  df_res_data = df_resumo_turma[df_resumo_turma["data"] == str_filtro_data]
 
   if "CONSOLIDADO GERAL" not in filtro_turma:
     df_ch_data = df_ch_data[df_ch_data["turma"] == filtro_turma]
     df_res_data = df_res_data[df_res_data["turma"] == filtro_turma]
-    df_matr = st.session_state["db_alunos"][
-        (st.session_state["db_alunos"]["turma"] == filtro_turma)
-        & (st.session_state["db_alunos"]["ativo"] == True)
+    df_matr = df_alunos[
+        (df_alunos["turma"] == filtro_turma) & (df_alunos["ativo"] == True)
     ]
   else:
-    df_matr = st.session_state["db_alunos"][
-        st.session_state["db_alunos"]["ativo"] == True
-    ]
+    df_matr = df_alunos[df_alunos["ativo"] == True]
 
   num_matriculados = len(df_matr)
   num_presentes = (
@@ -229,15 +245,16 @@ with aba_relatorio_domingo:
   )
   num_ausentes = max(0, num_matriculados - num_presentes)
   num_visitantes = (
-      df_res_data["visitantes"].sum() if not df_res_data.empty else 0
+      int(df_res_data["visitantes"].sum()) if not df_res_data.empty else 0
   )
   presenca_total = num_presentes + num_visitantes
-  total_oferta = df_res_data["oferta"].sum() if not df_res_data.empty else 0.0
+  total_oferta = (
+      float(df_res_data["oferta"].sum()) if not df_res_data.empty else 0.0
+  )
   taxa_freq = (
       (num_presentes / num_matriculados * 100) if num_matriculados > 0 else 0
   )
 
-  # CARTÕES DE MÉTRICAS EXIGIDOS
   m1, m2, m3, m4 = st.columns(4)
   m1.metric("📋 Matriculados", num_matriculados)
   m2.metric("✅ Presentes (Alunos)", num_presentes)
@@ -251,32 +268,27 @@ with aba_relatorio_domingo:
 
   st.markdown("---")
 
-  # Tabela detalhada por turma caso seja o Consolidado
   if "CONSOLIDADO GERAL" in filtro_turma:
     st.write("### 📈 Resumo Comparativo por Turma")
     resumo_turmas_list = []
 
     for t in TURMAS:
       mat_t = len(
-          st.session_state["db_alunos"][
-              (st.session_state["db_alunos"]["turma"] == t)
-              & (st.session_state["db_alunos"]["ativo"] == True)
-          ]
+          df_alunos[(df_alunos["turma"] == t) & (df_alunos["ativo"] == True)]
       )
-      ch_t = st.session_state["db_chamadas"][
-          (st.session_state["db_chamadas"]["data"] == str_filtro_data)
-          & (st.session_state["db_chamadas"]["turma"] == t)
+      ch_t = df_chamadas[
+          (df_chamadas["data"] == str_filtro_data) & (df_chamadas["turma"] == t)
       ]
-      res_t = st.session_state["db_resumo_turma"][
-          (st.session_state["db_resumo_turma"]["data"] == str_filtro_data)
-          & (st.session_state["db_resumo_turma"]["turma"] == t)
+      res_t = df_resumo_turma[
+          (df_resumo_turma["data"] == str_filtro_data)
+          & (df_resumo_turma["turma"] == t)
       ]
 
       pres_t = ch_t["presente"].sum() if not ch_t.empty else 0
       aus_t = max(0, mat_t - pres_t)
-      vis_t = res_t["visitantes"].sum() if not res_t.empty else 0
+      vis_t = int(res_t["visitantes"].sum()) if not res_t.empty else 0
       p_tot_t = pres_t + vis_t
-      ofe_t = res_t["oferta"].sum() if not res_t.empty else 0.0
+      ofe_t = float(res_t["oferta"].sum()) if not res_t.empty else 0.0
 
       resumo_turmas_list.append({
           "Turma": t,
@@ -291,7 +303,6 @@ with aba_relatorio_domingo:
     df_resumo_final = pd.DataFrame(resumo_turmas_list)
     st.dataframe(df_resumo_final, hide_index=True, use_container_width=True)
 
-    # Gráfico de Barras Comparativo
     fig_comp = px.bar(
         df_resumo_final,
         x="Turma",
@@ -307,12 +318,11 @@ with aba_relatorio_domingo:
 with aba_anual:
   st.subheader("🏆 Relatório Acumulado de Assiduidade dos Alunos")
 
-  if st.session_state["db_chamadas"].empty:
+  if df_chamadas.empty:
     st.info("Nenhuma chamada realizada ainda no sistema.")
   else:
-    df_ch = st.session_state["db_chamadas"].copy()
     df_rank = (
-        df_ch.groupby(["aluno_id", "nome", "turma"])
+        df_chamadas.groupby(["aluno_id", "nome", "turma"])
         .agg(
             total_aulas=("presente", "count"),
             presencas=("presente", lambda x: x.sum()),
@@ -374,8 +384,8 @@ with aba_cadastro:
         st.error("Por favor, digite o nome do aluno.")
       else:
         novo_id = (
-            st.session_state["db_alunos"]["id"].max() + 1
-            if not st.session_state["db_alunos"].empty
+            int(df_alunos["id"].max()) + 1
+            if not df_alunos.empty and pd.notna(df_alunos["id"].max())
             else 1
         )
         novo_aluno = pd.DataFrame([{
@@ -384,27 +394,24 @@ with aba_cadastro:
             "turma": turma_nova,
             "ativo": True,
         }])
-        st.session_state["db_alunos"] = pd.concat(
-            [st.session_state["db_alunos"], novo_aluno], ignore_index=True
+        df_alunos_atualizado = pd.concat(
+            [df_alunos, novo_aluno], ignore_index=True
         )
+
+        conn.update(worksheet="Alunos", data=df_alunos_atualizado)
         st.success(
-            f"Aluno **{nome_novo}** cadastrado com sucesso na turma"
-            f" '{turma_nova}'!"
+            f"Aluno **{nome_novo}** salvo com sucesso na planilha Google!"
         )
+        st.rerun()
 
   st.markdown("---")
   st.write("### 📋 Alunos Cadastrados no Sistema")
+  df_alunos_ativos = df_alunos[df_alunos["ativo"] == True]
   st.dataframe(
-      st.session_state["db_alunos"][
-          st.session_state["db_alunos"]["ativo"] == True
-      ][["id", "nome", "turma"]],
+      df_alunos_ativos[["id", "nome", "turma"]],
       hide_index=True,
       use_container_width=True,
   )
-
-  df_alunos_existentes = st.session_state["db_alunos"][
-      st.session_state["db_alunos"]["ativo"] == True
-  ]
 
   # -----------------------------------------------------------------------------
   # EDITAR ALUNO OU MUDAR DE TURMA
@@ -412,10 +419,10 @@ with aba_cadastro:
   st.markdown("---")
   st.subheader("✏️ Editar Aluno ou Mudar de Turma")
 
-  if not df_alunos_existentes.empty:
+  if not df_alunos_ativos.empty:
     opcoes_alunos_edit = {
         row["id"]: f"{row['nome']} — {row['turma']}"
-        for _, row in df_alunos_existentes.iterrows()
+        for _, row in df_alunos_ativos.iterrows()
     }
 
     aluno_id_edit = st.selectbox(
@@ -425,8 +432,8 @@ with aba_cadastro:
         key="select_edit_aluno",
     )
 
-    aluno_atual = df_alunos_existentes[
-        df_alunos_existentes["id"] == aluno_id_edit
+    aluno_atual = df_alunos_ativos[
+        df_alunos_ativos["id"] == aluno_id_edit
     ].iloc[0]
 
     with st.form(key=f"form_edit_aluno_{aluno_id_edit}"):
@@ -448,14 +455,15 @@ with aba_cadastro:
       btn_salvar_edit = st.form_submit_button("💾 Salvar Alterações")
 
       if btn_salvar_edit:
-        st.session_state["db_alunos"].loc[
-            st.session_state["db_alunos"]["id"] == aluno_id_edit, "nome"
-        ] = novo_nome_edit.strip()
-        st.session_state["db_alunos"].loc[
-            st.session_state["db_alunos"]["id"] == aluno_id_edit, "turma"
-        ] = nova_turma_edit
+        df_alunos.loc[df_alunos["id"] == aluno_id_edit, "nome"] = (
+            novo_nome_edit.strip()
+        )
+        df_alunos.loc[df_alunos["id"] == aluno_id_edit, "turma"] = (
+            nova_turma_edit
+        )
 
-        st.success("Alterações salvas com sucesso!")
+        conn.update(worksheet="Alunos", data=df_alunos)
+        st.success("Alterações salvas com sucesso no Google Sheets!")
         st.rerun()
 
   # -----------------------------------------------------------------------------
@@ -464,13 +472,13 @@ with aba_cadastro:
   st.markdown("---")
   st.subheader("🗑️ Excluir Aluno Cadastrado")
 
-  if not df_alunos_existentes.empty:
+  if not df_alunos_ativos.empty:
     col_ex1, col_ex2 = st.columns(2)
 
     with col_ex1:
       opcoes_alunos = {
           row["id"]: f"{row['nome']} — {row['turma']}"
-          for _, row in df_alunos_existentes.iterrows()
+          for _, row in df_alunos_ativos.iterrows()
       }
       aluno_id_selecionado = st.selectbox(
           "Selecione o Aluno que deseja remover:",
@@ -485,13 +493,7 @@ with aba_cadastro:
       btn_excluir = st.button("❌ Excluir Aluno", use_container_width=True)
 
     if btn_excluir:
-      st.session_state["db_alunos"] = st.session_state["db_alunos"][
-          st.session_state["db_alunos"]["id"] != aluno_id_selecionado
-      ]
-      st.success("Aluno removido com sucesso!")
+      df_alunos_restantes = df_alunos[df_alunos["id"] != aluno_id_selecionado]
+      conn.update(worksheet="Alunos", data=df_alunos_restantes)
+      st.success("Aluno removido da planilha com sucesso!")
       st.rerun()
-
-      st.success("Aluno removido com sucesso!")
-      st.rerun()
-    else:
-      st.info("Nenhum aluno cadastrado para remover.")
