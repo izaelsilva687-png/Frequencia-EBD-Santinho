@@ -1,8 +1,8 @@
 import datetime
 import pandas as pd
 import plotly.express as px
+import requests
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 
 # Configuração da Página
 st.set_page_config(
@@ -12,8 +12,15 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------------------------------
-# LISTA DAS 7 TURMAS DA EBD
+# CONFIGURAÇÃO DA PLANILHA E DO WEB APP
 # -----------------------------------------------------------------------------
+# 1. COLE O ID DA SUA PLANILHA AQUI:
+SPREADSHEET_ID = "1jeR_pPWlkss_4O7lEumQbF6ajTOHAN4VEHTkvVEqQyw"
+
+# 2. COLE A URL DO WEB APP GERADO NO GOOGLE APPS SCRIPT AQUI:
+URL_WEB_APP = "https://script.google.com/macros/s/AKfycbz2QimxIPzLJTuQMFOavn_sAuroUifn22oIoPWz4rKMc_CoUlXY8siJDggu1csph1CBSw/exec"
+
+# LISTA DAS 7 TURMAS DA EBD
 TURMAS = [
     "OFICIAIS",
     "LÍRIOS DO VALE",
@@ -24,15 +31,12 @@ TURMAS = [
     "BERÇÁRIO",
 ]
 
-# =============================================================================
-# CONEXÃO DIRETA VIA PANDAS (SEM NECESSIDADE DE SECRETS)
-# =============================================================================
-# Cole Apenas o ID da sua planilha abaixo (entre as aspas):
-SPREADSHEET_ID = "1jeR_pPWlkss_4O7lEumQbF6ajTOHAN4VEHTkvVEqQyw"
 
-
+# -----------------------------------------------------------------------------
+# FUNÇÕES DE LEITURA E GRAVAÇÃO
+# -----------------------------------------------------------------------------
 def carregar_dados():
-  """Lê as abas da planilha pública do Google Sheets diretamente via Pandas"""
+  """Lê as abas da planilha pública do Google Sheets"""
   try:
     url_alunos = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Alunos"
     df_alunos = pd.read_csv(url_alunos)
@@ -42,11 +46,7 @@ def carregar_dados():
       df_alunos["ativo"] = (
           df_alunos["ativo"].astype(str).str.upper().isin(["TRUE", "1"])
       )
-  except Exception as e:
-    st.error(
-        f"⚠️ Erro ao ler a aba 'Alunos': {e}. Verifique se a planilha está"
-        " compartilhada como 'Qualquer pessoa com o link'."
-    )
+  except Exception:
     df_alunos = pd.DataFrame(columns=["id", "nome", "turma", "ativo"])
 
   try:
@@ -76,18 +76,27 @@ def carregar_dados():
   return df_alunos, df_chamadas, df_resumo
 
 
-# Carrega os dados da planilha
+def salvar_na_planilha(nome_aba, df, mode="overwrite"):
+  """Envia os dados para o Web App do Google salvar na planilha."""
+  try:
+    dados = [df.columns.tolist()] + df.values.tolist()
+    payload = {"sheet": nome_aba, "rows": dados, "mode": mode}
+    res = requests.post(URL_WEB_APP, json=payload)
+    return res.status_code == 200
+  except Exception as e:
+    st.error(f"Erro ao salvar dados: {e}")
+    return False
+
+
+# Carrega dados
 df_alunos, df_chamadas, df_resumo_turma = carregar_dados()
 
 # -----------------------------------------------------------------------------
-# CABEÇALHO DO APLICATIVO
+# CABEÇALHO E NAVEGAÇÃO
 # -----------------------------------------------------------------------------
 st.title("📖 Sistema de Frequência da Escola Dominical")
-st.caption(
-    "Gestão em tempo real das 7 turmas da EBD — Conectado ao Google Sheets"
-)
+st.caption("Gestão em tempo real das 7 turmas da EBD — Conectado ao Google Drive")
 
-# NAVEGAÇÃO PRINCIPAL (ABAS)
 aba_chamada, aba_relatorio_domingo, aba_anual, aba_cadastro = st.tabs([
     "📱 Fazer Chamada",
     "📊 Relatório do Domingo",
@@ -111,15 +120,14 @@ with aba_chamada:
 
   st.markdown("---")
 
-  # Filtrar alunos da turma selecionada
   df_alunos_turma = df_alunos[
       (df_alunos["turma"] == turma_prof) & (df_alunos["ativo"] == True)
   ].sort_values("nome")
 
   if df_alunos_turma.empty:
     st.warning(
-        f"Nenhum aluno cadastrado para a turma '{turma_prof}'. Vá na aba"
-        " 'Cadastrar Alunos' para incluir a lista."
+        f"Nenhum aluno cadastrado para a turma '{turma_prof}'. Cadastre alunos"
+        " na aba 'Cadastrar Alunos'."
     )
   else:
     st.write(
@@ -164,7 +172,6 @@ with aba_chamada:
       if btn_salvar:
         str_data = data_aula.strftime("%d/%m/%Y")
 
-        # Remover registros anteriores da mesma data/turma se houver recálculo
         df_chamadas_limpas = df_chamadas[
             ~((df_chamadas["data"] == str_data) & (df_chamadas["turma"] == turma_prof))
         ]
@@ -172,7 +179,6 @@ with aba_chamada:
             ~((df_resumo_turma["data"] == str_data) & (df_resumo_turma["turma"] == turma_prof))
         ]
 
-        # Novas chamadas
         novas_chamadas = []
         for aluno_id, esteve_presente in presencas.items():
           nome_aluno = df_alunos_turma[df_alunos_turma["id"] == aluno_id][
@@ -201,20 +207,19 @@ with aba_chamada:
             [df_resumo_limpo, novo_resumo], ignore_index=True
         )
 
-        # Atualiza o Google Sheets
-        conn.update(worksheet="Chamadas", data=df_chamadas_final)
-        conn.update(worksheet="Resumo", data=df_resumo_final)
+        salvar_na_planilha("Chamadas", df_chamadas_final, mode="overwrite")
+        salvar_na_planilha("Resumo", df_resumo_final, mode="overwrite")
 
         total_presentes_dia = sum(presencas.values())
         st.success(
-            f"✅ Chamada da turma '{turma_prof}' referente a {str_data} salva no"
-            f" Google Sheets! ({total_presentes_dia} presentes, {num_visitantes}"
+            f"✅ Chamada da turma '{turma_prof}' referente a {str_data} salva com"
+            f" sucesso! ({total_presentes_dia} presentes, {num_visitantes}"
             f" visitantes e R$ {val_oferta:.2f} de oferta)."
         )
         st.rerun()
 
 # =============================================================================
-# ABA 2: RELATÓRIO DO DOMINGO (DIREÇÃO)
+# ABA 2: RELATÓRIO DO DOMINGO
 # =============================================================================
 with aba_relatorio_domingo:
   st.subheader("📊 Painel Consolidado da Apuração de Domingo")
@@ -321,7 +326,7 @@ with aba_relatorio_domingo:
     st.plotly_chart(fig_comp, use_container_width=True)
 
 # =============================================================================
-# ABA 3: HISTÓRICO ANUAL DO ALUNO
+# ABA 3: HISTÓRICO ANUAL
 # =============================================================================
 with aba_anual:
   st.subheader("🏆 Relatório Acumulado de Assiduidade dos Alunos")
@@ -406,10 +411,8 @@ with aba_cadastro:
             [df_alunos, novo_aluno], ignore_index=True
         )
 
-        conn.update(worksheet="Alunos", data=df_alunos_atualizado)
-        st.success(
-            f"Aluno **{nome_novo}** salvo com sucesso na planilha Google!"
-        )
+        salvar_na_planilha("Alunos", df_alunos_atualizado, mode="overwrite")
+        st.success(f"Aluno **{nome_novo}** cadastrado com sucesso!")
         st.rerun()
 
   st.markdown("---")
@@ -470,8 +473,8 @@ with aba_cadastro:
             nova_turma_edit
         )
 
-        conn.update(worksheet="Alunos", data=df_alunos)
-        st.success("Alterações salvas com sucesso no Google Sheets!")
+        salvar_na_planilha("Alunos", df_alunos, mode="overwrite")
+        st.success("Alterações salvas com sucesso!")
         st.rerun()
 
   # -----------------------------------------------------------------------------
@@ -502,6 +505,6 @@ with aba_cadastro:
 
     if btn_excluir:
       df_alunos_restantes = df_alunos[df_alunos["id"] != aluno_id_selecionado]
-      conn.update(worksheet="Alunos", data=df_alunos_restantes)
-      st.success("Aluno removido da planilha com sucesso!")
+      salvar_na_planilha("Alunos", df_alunos_restantes, mode="overwrite")
+      st.success("Aluno removido com sucesso!")
       st.rerun()
