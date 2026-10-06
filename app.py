@@ -97,7 +97,7 @@ df_alunos, df_chamadas, df_resumo_turma = carregar_dados()
 st.title("📖 Sistema de Frequência da Escola Dominical - AD Santinho")
 st.caption("Gestão em tempo real das 7 turmas da EBD — Conectado ao Google Drive")
 
-aba_chamada, aba_relatorio_domingo, aba_anual, aba_cadastro = st.tabs([
+aba_chamada, aba_relatorio_domingo, aba_anual, = st.tabs([
     "📱 Fazer Chamada",
     "📊 Relatório do Domingo",
     "🏆 Histórico Anual do Aluno",
