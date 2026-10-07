@@ -120,114 +120,131 @@ aba_chamada, aba_relatorio_domingo, aba_anual, = st.tabs([
 with aba_chamada:
   st.subheader("📱 Registro de Frequência do Domingo")
 
-  col_t1, col_t2 = st.columns(2)
-  with col_t1:
-    turma_prof = st.selectbox("Selecione a sua Turma:", TURMAS)
-  with col_t2:
-    data_aula = st.date_input(
-        "Data da Aula:", datetime.date.today(), format="DD/MM/YYYY"
-    )
-
-  st.markdown("---")
-
-  df_alunos_turma = df_alunos[
-      (df_alunos["turma"] == turma_prof) & (df_alunos["ativo"] == True)
-  ].sort_values("nome")
-
-  if df_alunos_turma.empty:
+  # 1. TESTA SE ESTÁ FORA DO HORÁRIO PERMITIDO
+  if not chamada_liberada:
     st.warning(
-        f"Nenhum aluno cadastrado para a turma '{turma_prof}'. Cadastre alunos"
-        " na aba 'Cadastrar Alunos'."
+        "🔒 **Sistema de Chamada Bloqueado no Momento.**\n\n"
+        "O registro de frequência pelos professores fica disponível apenas aos"
+        " **domingos, das 08h às 13h**."
     )
+    st.info(
+        "💡 **Necessita fazer alguma alteração?**\n\n"
+        "Lançamentos ou correções fora do horário oficial devem ser feitos"
+        " diretamente na planilha do Google Sheets pelo administrador."
+    )
+
+  # 2. SE ESTIVER NO HORÁRIO (DOMINGO DAS 08H ÀS 13H), MOSTRA O FORMULÁRIO NORMALMENTE
   else:
-    st.write(
-        f"### Lista de Alunos Matriculados ({len(df_alunos_turma)} alunos)"
-    )
-    st.caption(
-        "Marque a caixa para os alunos PRESENTES. Deixe desmarcado para quem"
-        " faltou:"
-    )
-
-    with st.form(key=f"form_chamada_{turma_prof}"):
-      presencas = {}
-      cols_alunos = st.columns(2)
-
-      for idx, row in df_alunos_turma.reset_index(drop=True).iterrows():
-        col_target = cols_alunos[idx % 2]
-        presencas[row["id"]] = col_target.checkbox(
-            label=f"👤 **{row['nome']}**", value=True, key=f"aluno_{row['id']}"
-        )
-
-      st.markdown("---")
-      st.write("### ➕ Visitantes e Oferta da Turma")
-      col_v, col_o = st.columns(2)
-
-      with col_v:
-        num_visitantes = st.number_input(
-            "Número de Visitantes no dia:", min_value=0, value=0, step=1
-        )
-      with col_o:
-        val_oferta = st.number_input(
-            "Valor da Oferta Coletada (R$):",
-            min_value=0.0,
-            value=0.0,
-            step=1.0,
-            format="%.2f",
-        )
-
-      btn_salvar = st.form_submit_button(
-          "💾 Salvar Chamada do Domingo", use_container_width=True
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+      turma_prof = st.selectbox("Selecione a sua Turma:", TURMAS)
+    with col_t2:
+      data_aula = st.date_input(
+          "Data da Aula:", datetime.date.today(), format="DD/MM/YYYY"
       )
 
-      if btn_salvar:
-        str_data = data_aula.strftime("%d/%m/%Y")
+    st.markdown("---")
 
-        df_chamadas_limpas = df_chamadas[
-            ~((df_chamadas["data"] == str_data) & (df_chamadas["turma"] == turma_prof))
-        ]
-        df_resumo_limpo = df_resumo_turma[
-            ~((df_resumo_turma["data"] == str_data) & (df_resumo_turma["turma"] == turma_prof))
-        ]
+    df_alunos_turma = df_alunos[
+        (df_alunos["turma"] == turma_prof) & (df_alunos["ativo"] == True)
+    ].sort_values("nome")
 
-        novas_chamadas = []
-        for aluno_id, esteve_presente in presencas.items():
-          nome_aluno = df_alunos_turma[df_alunos_turma["id"] == aluno_id][
-              "nome"
-          ].values[0]
-          novas_chamadas.append({
+    if df_alunos_turma.empty:
+      st.warning(
+          f"Nenhum aluno encontrado para a turma '{turma_prof}' na planilha."
+      )
+    else:
+      st.write(
+          f"### Lista de Alunos Matriculados ({len(df_alunos_turma)} alunos)"
+      )
+      st.caption(
+          "Marque a caixa para os alunos PRESENTES. Deixe desmarcado para quem"
+          " faltou:"
+      )
+
+      with st.form(key=f"form_chamada_{turma_prof}"):
+        presencas = {}
+        cols_alunos = st.columns(2)
+
+        for idx, row in df_alunos_turma.reset_index(drop=True).iterrows():
+          col_target = cols_alunos[idx % 2]
+          presencas[row["id"]] = col_target.checkbox(
+              label=f"👤 **{row['nome']}**",
+              value=True,
+              key=f"aluno_{turma_prof}_{row['id']}_{idx}",
+          )
+
+        st.markdown("---")
+        st.write("### ➕ Visitantes e Oferta da Turma")
+        col_v, col_o = st.columns(2)
+
+        with col_v:
+          num_visitantes = st.number_input(
+              "Número de Visitantes no dia:", min_value=0, value=0, step=1
+          )
+        with col_o:
+          val_oferta = st.number_input(
+              "Valor da Oferta Coletada (R$):",
+              min_value=0.0,
+              value=0.0,
+              step=1.0,
+              format="%.2f",
+          )
+
+        btn_salvar = st.form_submit_button(
+            "💾 Salvar Chamada do Domingo", use_container_width=True
+        )
+
+        if btn_salvar:
+          str_data = data_aula.strftime("%d/%m/%Y")
+
+          df_chamadas_limpas = df_chamadas[
+              ~((df_chamadas["data"] == str_data)
+              & (df_chamadas["turma"] == turma_prof))
+          ]
+          df_resumo_limpo = df_resumo_turma[
+              ~((df_resumo_turma["data"] == str_data)
+              & (df_resumo_turma["turma"] == turma_prof))
+          ]
+
+          novas_chamadas = []
+          for aluno_id, esteve_presente in presencas.items():
+            nome_aluno = df_alunos_turma[df_alunos_turma["id"] == aluno_id][
+                "nome"
+            ].values
+            novas_chamadas.append({
+                "data": str_data,
+                "turma": turma_prof,
+                "aluno_id": aluno_id,
+                "nome": nome_aluno,
+                "presente": esteve_presente,
+            })
+
+          df_novas_ch = pd.DataFrame(novas_chamadas)
+          df_chamadas_final = pd.concat(
+              [df_chamadas_limpas, df_novas_ch], ignore_index=True
+          )
+
+          novo_resumo = pd.DataFrame([{
               "data": str_data,
               "turma": turma_prof,
-              "aluno_id": aluno_id,
-              "nome": nome_aluno,
-              "presente": esteve_presente,
-          })
+              "visitantes": num_visitantes,
+              "oferta": val_oferta,
+          }])
+          df_resumo_final = pd.concat(
+              [df_resumo_limpo, novo_resumo], ignore_index=True
+          )
 
-        df_novas_ch = pd.DataFrame(novas_chamadas)
-        df_chamadas_final = pd.concat(
-            [df_chamadas_limpas, df_novas_ch], ignore_index=True
-        )
+          salvar_na_planilha("Chamadas", df_chamadas_final, mode="overwrite")
+          salvar_na_planilha("Resumo", df_resumo_final, mode="overwrite")
 
-        novo_resumo = pd.DataFrame([{
-            "data": str_data,
-            "turma": turma_prof,
-            "visitantes": num_visitantes,
-            "oferta": val_oferta,
-        }])
-        df_resumo_final = pd.concat(
-            [df_resumo_limpo, novo_resumo], ignore_index=True
-        )
-
-        salvar_na_planilha("Chamadas", df_chamadas_final, mode="overwrite")
-        salvar_na_planilha("Resumo", df_resumo_final, mode="overwrite")
-
-        total_presentes_dia = sum(presencas.values())
-        st.success(
-            f"✅ Chamada da turma '{turma_prof}' referente a {str_data} salva com"
-            f" sucesso! ({total_presentes_dia} presentes, {num_visitantes}"
-            f" visitantes e R$ {val_oferta:.2f} de oferta)."
-        )
-        st.rerun()
-
+          total_presentes_dia = sum(presencas.values())
+          st.success(
+              f"✅ Chamada da turma '{turma_prof}' referente a {str_data} salva"
+              f" com sucesso! ({total_presentes_dia} presentes,"
+              f" {num_visitantes} visitantes e R$ {val_oferta:.2f} de oferta)."
+          )
+          st.rerun()
 # =============================================================================
 # ABA 2: RELATÓRIO DO DOMINGO
 # =============================================================================
