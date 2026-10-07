@@ -483,8 +483,8 @@ with aba_anual:
 with aba_matriculados:
   st.subheader("👥 Lista de Alunos Matriculados")
   st.caption(
-      "Consulta da lista oficial de alunos ativos cadastrados no Google"
-      " Sheets."
+      "Consulta da lista oficial de alunos ativos com cálculo automático de"
+      " idade."
   )
 
   filtro_turma_mat = st.selectbox(
@@ -493,7 +493,7 @@ with aba_matriculados:
       key="filtro_mat_turma",
   )
 
-  df_ativos = df_alunos[df_alunos["ativo"] == True]
+  df_ativos = df_alunos[df_alunos["ativo"] == True].copy()
 
   if "TODAS AS TURMAS" not in filtro_turma_mat:
     df_ativos = df_ativos[df_ativos["turma"] == filtro_turma_mat]
@@ -501,14 +501,39 @@ with aba_matriculados:
   if df_ativos.empty:
     st.warning("Nenhum aluno encontrado para essa seleção.")
   else:
+
+    # Função para calcular a idade exata no dia de hoje
+    def calcular_idade(val):
+      try:
+        dt_nasc = datetime.datetime.strptime(str(val).strip(), "%d/%m/%Y")
+        hoje = datetime.date.today()
+        idade = (
+            hoje.year
+            - dt_nasc.year
+            - ((hoje.month, hoje.day) < (dt_nasc.month, dt_nasc.day))
+        )
+        return f"{idade} anos"
+      except Exception:
+        return "Não informada"
+
+    cols_exibir = ["id", "nome", "turma"]
+    nomes_colunas = {"id": "ID", "nome": "Nome do Aluno", "turma": "Turma"}
+
+    # Se a coluna data_nascimento existir na planilha, calcula a idade
+    if "data_nascimento" in df_ativos.columns:
+      df_ativos["idade_calc"] = df_ativos["data_nascimento"].apply(
+          calcular_idade
+      )
+      cols_exibir.extend(["data_nascimento", "idade_calc"])
+      nomes_colunas["data_nascimento"] = "Data de Nascimento"
+      nomes_colunas["idade_calc"] = "Idade Atual"
+
     col_m1, col_m2 = st.columns(2)
     col_m1.metric("📋 Total de Alunos Exibidos", len(df_ativos))
 
     st.markdown("---")
     st.dataframe(
-        df_ativos[["id", "nome", "turma"]].rename(
-            columns={"id": "ID", "nome": "Nome do Aluno", "turma": "Turma"}
-        ),
+        df_ativos[cols_exibir].rename(columns=nomes_colunas),
         hide_index=True,
         use_container_width=True,
     )
