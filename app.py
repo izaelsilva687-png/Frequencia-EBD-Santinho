@@ -325,53 +325,125 @@ with aba_relatorio_domingo:
     st.plotly_chart(fig_comp, use_container_width=True)
 
 # =============================================================================
-# ABA 3: HISTÓRICO ANUAL
+# ABA 3: HISTÓRICO DE ASSIDUIDADE (POR TURMA E POR SEMESTRE/ANO)
 # =============================================================================
 with aba_anual:
-  st.subheader("🏆 Relatório Acumulado de Assiduidade dos Alunos")
+  st.subheader("🏆 Relatório de Assiduidade dos Alunos")
 
   if df_chamadas.empty:
     st.info("Nenhuma chamada realizada ainda no sistema.")
   else:
-    df_rank = (
-        df_chamadas.groupby(["aluno_id", "nome", "turma"])
-        .agg(
-            total_aulas=("presente", "count"),
-            presencas=("presente", lambda x: x.sum()),
-        )
-        .reset_index()
+    # 1. Converte a coluna 'data' para formato de data para filtrar por mês e ano
+    df_ch_temp = df_chamadas.copy()
+    df_ch_temp["data_dt"] = pd.to_datetime(
+        df_ch_temp["data"], format="%d/%m/%Y", errors="coerce"
     )
 
-    df_rank["faltas"] = df_rank["total_aulas"] - df_rank["presencas"]
-    df_rank["frequencia_pct"] = (
-        df_rank["presencas"] / df_rank["total_aulas"] * 100
+    # Anos disponíveis no sistema (padrão: ano atual)
+    anos_disponiveis = sorted(
+        df_ch_temp["data_dt"].dt.year.dropna().unique().astype(int),
+        reverse=True,
     )
+    if not anos_disponiveis:
+      anos_disponiveis = [datetime.date.today().year]
 
-    df_rank = df_rank.sort_values(
-        by=["frequencia_pct", "presencas"], ascending=False
-    )
+    # Seletor de Turma, Ano e Semestre
+    col_f1, col_f2, col_f3 = st.columns(3)
+    with col_f1:
+      turma_rel = st.selectbox(
+          "Selecione a Turma:", TURMAS, key="rel_turma_sel"
+      )
+    with col_f2:
+      ano_rel = st.selectbox(
+          "Selecione o Ano:", anos_disponiveis, key="rel_ano_sel"
+      )
+    with col_f3:
+      periodo_rel = st.selectbox(
+          "Selecione o Período:",
+          [
+              "1º Semestre (Jan a Jun)",
+              "2º Semestre (Jul a Dez)",
+              "Ano Completo",
+          ],
+          key="rel_periodo_sel",
+      )
 
-    st.write("### 🥇 Ranking de Assiduidade")
-    st.dataframe(
-        df_rank.rename(
-            columns={
-                "nome": "Nome do Aluno",
-                "turma": "Turma",
-                "total_aulas": "Total de Domingos",
-                "presencas": "Presenças",
-                "faltas": "Faltas",
-                "frequencia_pct": "% Assiduidade",
-            }
-        )[
-            [
-                "Nome do Aluno",
-                "Turma",
-                "Total de Domingos",
-                "Presenças",
-                "Faltas",
-                "% Assiduidade",
-            ]
-        ],
-        hide_index=True,
-        use_container_width=True,
-    )
+    # 2. Filtragem por Turma e Ano
+    df_filtrado = df_ch_temp[
+        (df_ch_temp["turma"] == turma_rel)
+        & (df_ch_temp["data_dt"].dt.year == ano_rel)
+    ]
+
+    # 3. Filtragem pelo Semestre
+    if periodo_rel == "1º Semestre (Jan a Jun)":
+      df_filtrado = df_filtrado[df_filtrado["data_dt"].dt.month.between(1, 6)]
+    elif periodo_rel == "2º Semestre (Jul a Dez)":
+      df_filtrado = df_filtrado[df_filtrado["data_dt"].dt.month.between(7, 12)]
+
+    st.markdown("---")
+
+    if df_filtrado.empty:
+      st.warning(
+          f"Nenhum registro de chamada encontrado para a turma **{turma_rel}**"
+          f" no **{periodo_rel}** de **{ano_rel}**."
+      )
+    else:
+      # Agrupamento e cálculo de assiduidade individual dos alunos da turma
+      df_rank = (
+          df_filtrado.groupby(["aluno_id", "nome"])
+          .agg(
+              total_aulas=("presente", "count"),
+              presencas=("presente", lambda x: x.sum()),
+          )
+          .reset_index()
+      )
+
+      df_rank["faltas"] = df_rank["total_aulas"] - df_rank["presencas"]
+      df_rank["frequencia_pct"] = (
+          df_rank["presencas"] / df_rank["total_aulas"] * 100
+      )
+      df_rank = df_rank.sort_values(
+          by=["frequencia_pct", "presencas"], ascending=False
+      )
+
+      total_domingos = df_filtrado["data"].nunique()
+      media_turma = df_rank["frequencia_pct"].mean()
+
+      # Resumo da Turma
+      col_m1, col_m2, col_m3 = st.columns(3)
+      col_m1.metric("🏫 Turma Selecionada", turma_rel)
+      col_m2.metric("📅 Domingos com Chamada", total_domingos)
+      col_m3.metric("📊 Média de Frequência da Turma", f"{media_turma:.1f}%")
+
+      st.markdown("---")
+      st.write(
+          f"### 📋 Assiduidade — {turma_rel} ({periodo_rel} / {ano_rel})"
+      )
+
+      # Formatação da tabela para exibição
+      df_exibir = df_rank.rename(
+          columns={
+              "nome": "Nome do Aluno",
+              "total_aulas": "Aulas Gravadas",
+              "presencas": "Presenças",
+              "faltas": "Faltas",
+              "frequencia_pct": "% Assiduidade",
+          }
+      )
+      df_exibir["% Assiduidade"] = df_exibir["% Assiduidade"].apply(
+          lambda x: f"{x:.1f}%"
+      )
+
+      st.dataframe(
+          df_exibir[
+              [
+                  "Nome do Aluno",
+                  "Aulas Gravadas",
+                  "Presenças",
+                  "Faltas",
+                  "% Assiduidade",
+              ]
+          ],
+          hide_index=True,
+          use_container_width=True,
+      )
