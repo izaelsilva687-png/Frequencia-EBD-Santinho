@@ -108,10 +108,11 @@ df_alunos, df_chamadas, df_resumo_turma = carregar_dados()
 st.title("📖 Sistema de Frequência da Escola Dominical - AD Santinho")
 st.caption("Gestão em tempo real das 7 turmas da EBD — Conectado ao Google Drive")
 
-aba_chamada, aba_relatorio_domingo, aba_anual, = st.tabs([
+aba_chamada, aba_relatorio_domingo, aba_anual, aba_matriculados = st.tabs([
     "📱 Fazer Chamada",
     "📊 Relatório do Domingo",
-    "🏆 Histórico Anual do Aluno",
+    "🏆 Histórico de Assiduidade",
+    "👥 Alunos Matriculados",
 ])
 
 # =============================================================================
@@ -475,3 +476,39 @@ with aba_anual:
           hide_index=True,
           use_container_width=True,
       )
+
+# =============================================================================
+# ABA 4: CONSULTA DE ALUNOS MATRICULADOS (APENAS VISUALIZAÇÃO)
+# =============================================================================
+with aba_matriculados:
+  st.subheader("👥 Lista de Alunos Matriculados")
+  st.caption(
+      "Consulta da lista oficial de alunos ativos cadastrados no Google"
+      " Sheets."
+  )
+
+  filtro_turma_mat = st.selectbox(
+      "Filtrar por Turma:",
+      ["🌟 TODAS AS TURMAS"] + TURMAS,
+      key="filtro_mat_turma",
+  )
+
+  df_ativos = df_alunos[df_alunos["ativo"] == True]
+
+  if "TODAS AS TURMAS" not in filtro_turma_mat:
+    df_ativos = df_ativos[df_ativos["turma"] == filtro_turma_mat]
+
+  if df_ativos.empty:
+    st.warning("Nenhum aluno encontrado para essa seleção.")
+  else:
+    col_m1, col_m2 = st.columns(2)
+    col_m1.metric("📋 Total de Alunos Exibidos", len(df_ativos))
+
+    st.markdown("---")
+    st.dataframe(
+        df_ativos[["id", "nome", "turma"]].rename(
+            columns={"id": "ID", "nome": "Nome do Aluno", "turma": "Turma"}
+        ),
+        hide_index=True,
+        use_container_width=True,
+    )
