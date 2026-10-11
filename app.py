@@ -140,15 +140,15 @@ with aba_chamada:
     st.warning(
         "🔒 **Sistema de Chamada Bloqueado no Momento.**\n\n"
         "O registro de frequência pelos professores fica disponível apenas aos"
-        " **domingos, das 08h às 13h**."
+        " **domingos, das 09h às 13h**."
     )
     st.info(
         "💡 **Necessita fazer alguma alteração?**\n\n"
         "Lançamentos ou correções fora do horário oficial devem ser feitos"
-        " diretamente na planilha do Google Sheets pelo administrador."
+        " diretamente com o Coordenador da EBD - Santinho."
     )
 
-  # 2. SE ESTIVER NO HORÁRIO (DOMINGO DAS 08H ÀS 13H), MOSTRA O FORMULÁRIO NORMALMENTE
+  # 2. SE ESTIVER NO HORÁRIO (DOMINGO DAS 09H ÀS 13H), MOSTRA O FORMULÁRIO NORMALMENTE
   else:
     col_t1, col_t2 = st.columns(2)
     with col_t1:
