@@ -11,14 +11,14 @@ st.set_page_config(
     layout="wide",
 )
 # -----------------------------------------------------------------------------
-# TRAVA DE SEGURANÇA: LIBERAÇÃO APENAS AOS DOMINGOS (08H ÀS 13H)
+# TRAVA DE SEGURANÇA: LIBERAÇÃO APENAS AOS DOMINGOS (09H ÀS 13H)
 # -----------------------------------------------------------------------------
 fuso_brt = datetime.timezone(datetime.timedelta(hours=-3))
 agora_brt = datetime.datetime.now(fuso_brt)
 
 # No Python: 0 = Segunda-feira, ..., 6 = Domingo
 eh_domingo = agora_brt.weekday() == 6
-horario_permitido = 8 <= agora_brt.hour < 16  # Das 08:00 às 15:59
+horario_permitido = 9 <= agora_brt.hour < 13  # Das 09:00 às 12:59
 
 chamada_liberada = eh_domingo and horario_permitido
 
