@@ -382,12 +382,12 @@ with aba_relatorio_domingo:
     # -----------------------------------------------------------------------------
 # ADICIONA A LINHA DE TOTAL GERAL NO FINAL DA TABELA
 # -----------------------------------------------------------------------------
-if not df_resumo_comparativo.empty:
+if not df_resumo_final.empty:
   # Tratamento para somar a oferta corretamente mesmo se estiver em texto
-  if "Oferta (R$)" in df_resumo_comparativo.columns:
+  if "Oferta (R$)" in df_resumo_final.columns:
     soma_oferta = (
         pd.to_numeric(
-            df_resumo_comparativo["Oferta (R$)"]
+            df_resumo_final["Oferta (R$)"]
             .astype(str)
             .str.replace("R$", "", regex=False)
             .str.replace(" ", "", regex=False)
@@ -404,20 +404,18 @@ if not df_resumo_comparativo.empty:
   # Monta a linha com a soma de cada coluna
   linha_total = pd.DataFrame([{
       "Turma": "🔥 TOTAL GERAL",
-      "Matriculados": int(df_resumo_comparativo["Matriculados"].sum()),
-      "Presentes": int(df_resumo_comparativo["Presentes"].sum()),
-      "Ausentes": int(df_resumo_comparativo["Ausentes"].sum()),
-      "Visitantes": int(df_resumo_comparativo["Visitantes"].sum()),
-      "Presença Total": int(df_resumo_comparativo["Presença Total"].sum()),
+      "Matriculados": int(df_resumo_final["Matriculados"].sum()),
+      "Presentes": int(df_resumo_final["Presentes"].sum()),
+      "Ausentes": int(df_resumo_final["Ausentes"].sum()),
+      "Visitantes": int(df_resumo_final["Visitantes"].sum()),
+      "Presença Total": int(df_resumo_final["Presença Total"].sum()),
       "Oferta (R$)": val_oferta_total,
   }])
 
   # Une a tabela das turmas com a linha do Total
-  df_resumo_exibir = pd.concat(
-      [df_resumo_comparativo, linha_total], ignore_index=True
-  )
+  df_resumo_exibir = pd.concat([df_resumo_final, linha_total], ignore_index=True)
 else:
-  df_resumo_exibir = df_resumo_comparativo
+  df_resumo_exibir = df_resumo_final
 
 # Exibe a tabela final com o Total Geral na última linha
 st.dataframe(df_resumo_exibir, hide_index=True, use_container_width=True)
