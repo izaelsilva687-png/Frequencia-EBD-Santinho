@@ -210,7 +210,7 @@ with aba_chamada:
             "💾 Salvar Chamada do Domingo", use_container_width=True
         )
 
-         if btn_salvar:
+       if btn_salvar:
           str_data = data_aula.strftime("%d/%m/%Y")
 
           # 1. Remove chamadas anteriores dessa mesma turma e data (evita duplicar)
