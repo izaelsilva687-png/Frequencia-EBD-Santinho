@@ -77,12 +77,26 @@ def carregar_dados():
     )
 
   try:
-    url_resumo = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Resumo"
-    df_resumo = pd.read_csv(url_resumo)
-    if df_resumo.empty:
+      url_resumo = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Resumo"
+      df_resumo = pd.read_csv(url_resumo)
+      if df_resumo.empty:
+        df_resumo = pd.DataFrame(
+            columns=["data", "turma", "visitantes", "oferta"]
+        )
+      else:
+        # Limpa formatações de texto (R$, vírgula) e converte para número decimal
+        df_resumo["oferta"] = (
+            df_resumo["oferta"]
+            .astype(str)
+            .str.replace("R$", "", regex=False)
+            .str.replace(" ", "", regex=False)
+            .str.replace(",", ".", regex=False)
+        )
+        df_resumo["oferta"] = pd.to_numeric(
+            df_resumo["oferta"], errors="coerce"
+        ).fillna(0.0)
+    except Exception:
       df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
-  except Exception:
-    df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
 
   return df_alunos, df_chamadas, df_resumo
 
@@ -290,8 +304,10 @@ with aba_relatorio_domingo:
   )
   presenca_total = num_presentes + num_visitantes
   total_oferta = (
-      float(df_res_data["oferta"].sum()) if not df_res_data.empty else 0.0
-  )
+    float(pd.to_numeric(df_res_data["oferta"], errors="coerce").sum())
+    if not df_res_data.empty
+    else 0.0
+)
   taxa_freq = (
       (num_presentes / num_matriculados * 100) if num_matriculados > 0 else 0
   )
@@ -329,7 +345,11 @@ with aba_relatorio_domingo:
       aus_t = max(0, mat_t - pres_t)
       vis_t = int(res_t["visitantes"].sum()) if not res_t.empty else 0
       p_tot_t = pres_t + vis_t
-      ofe_t = float(res_t["oferta"].sum()) if not res_t.empty else 0.0
+      ofe_t = (
+    float(pd.to_numeric(res_t["oferta"], errors="coerce").sum())
+    if not res_t.empty
+    else 0.0
+)
 
       resumo_turmas_list.append({
           "Turma": t,
