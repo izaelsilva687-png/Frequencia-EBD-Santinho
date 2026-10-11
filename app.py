@@ -379,7 +379,48 @@ with aba_relatorio_domingo:
       })
 
     df_resumo_final = pd.DataFrame(resumo_turmas_list)
-    st.dataframe(df_resumo_final, hide_index=True, use_container_width=True)
+    # -----------------------------------------------------------------------------
+# ADICIONA A LINHA DE TOTAL GERAL NO FINAL DA TABELA
+# -----------------------------------------------------------------------------
+if not df_resumo_comparativo.empty:
+  # Tratamento para somar a oferta corretamente mesmo se estiver em texto
+  if "Oferta (R$)" in df_resumo_comparativo.columns:
+    soma_oferta = (
+        pd.to_numeric(
+            df_resumo_comparativo["Oferta (R$)"]
+            .astype(str)
+            .str.replace("R$", "", regex=False)
+            .str.replace(" ", "", regex=False)
+            .str.replace(",", ".", regex=False),
+            errors="coerce",
+        )
+        .fillna(0.0)
+        .sum()
+    )
+    val_oferta_total = f"R$ {soma_oferta:.2f}"
+  else:
+    val_oferta_total = "R$ 0.00"
+
+  # Monta a linha com a soma de cada coluna
+  linha_total = pd.DataFrame([{
+      "Turma": "🔥 TOTAL GERAL",
+      "Matriculados": int(df_resumo_comparativo["Matriculados"].sum()),
+      "Presentes": int(df_resumo_comparativo["Presentes"].sum()),
+      "Ausentes": int(df_resumo_comparativo["Ausentes"].sum()),
+      "Visitantes": int(df_resumo_comparativo["Visitantes"].sum()),
+      "Presença Total": int(df_resumo_comparativo["Presença Total"].sum()),
+      "Oferta (R$)": val_oferta_total,
+  }])
+
+  # Une a tabela das turmas com a linha do Total
+  df_resumo_exibir = pd.concat(
+      [df_resumo_comparativo, linha_total], ignore_index=True
+  )
+else:
+  df_resumo_exibir = df_resumo_comparativo
+
+# Exibe a tabela final com o Total Geral na última linha
+st.dataframe(df_resumo_exibir, hide_index=True, use_container_width=True)
 
     fig_comp = px.bar(
         df_resumo_final,
