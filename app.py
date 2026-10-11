@@ -422,7 +422,7 @@ else:
 # Exibe a tabela final com o Total Geral na última linha
 st.dataframe(df_resumo_exibir, hide_index=True, use_container_width=True)
 
-    fig_comp = px.bar(
+fig_comp = px.bar(
         df_resumo_final,
         x="Turma",
         y=["Presentes", "Visitantes"],
