@@ -95,7 +95,7 @@ def carregar_dados():
         df_resumo["oferta"] = pd.to_numeric(
             df_resumo["oferta"], errors="coerce"
         ).fillna(0.0)
-    except Exception:
+  except Exception:
       df_resumo = pd.DataFrame(columns=["data", "turma", "visitantes", "oferta"])
 
   return df_alunos, df_chamadas, df_resumo
