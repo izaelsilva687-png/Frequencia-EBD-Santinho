@@ -429,7 +429,7 @@ fig_comp = px.bar(
         title="Presença de Alunos x Visitantes por Turma",
         barmode="stack",
     )
- st.plotly_chart(fig_comp, use_container_width=True)
+st.plotly_chart(fig_comp, use_container_width=True)
 
 # =============================================================================
 # ABA 3: HISTÓRICO DE ASSIDUIDADE (POR TURMA E POR SEMESTRE/ANO)
