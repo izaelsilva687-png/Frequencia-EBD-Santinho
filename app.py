@@ -210,9 +210,10 @@ with aba_chamada:
             "💾 Salvar Chamada do Domingo", use_container_width=True
         )
 
-        if btn_salvar:
+         if btn_salvar:
           str_data = data_aula.strftime("%d/%m/%Y")
 
+          # 1. Remove chamadas anteriores dessa mesma turma e data (evita duplicar)
           df_chamadas_limpas = df_chamadas[
               ~((df_chamadas["data"] == str_data)
               & (df_chamadas["turma"] == turma_prof))
@@ -222,34 +223,50 @@ with aba_chamada:
               & (df_resumo_turma["turma"] == turma_prof))
           ]
 
+          # 2. Monta a lista de presenças convertendo para texto/booleano nativo
           novas_chamadas = []
           for aluno_id, esteve_presente in presencas.items():
-            nome_aluno = df_alunos_turma[df_alunos_turma["id"] == aluno_id][
-                "nome"
-            ].values
+            df_aluno_sel = df_alunos_turma[df_alunos_turma["id"] == aluno_id]
+            nome_aluno = (
+                str(df_aluno_sel["nome"].iloc[0])
+                if not df_aluno_sel.empty
+                else "Aluno"
+            )
+
             novas_chamadas.append({
-                "data": str_data,
-                "turma": turma_prof,
-                "aluno_id": aluno_id,
+                "data": str(str_data),
+                "turma": str(turma_prof),
+                "aluno_id": str(aluno_id),
                 "nome": nome_aluno,
-                "presente": esteve_presente,
+                "presente": bool(esteve_presente),
             })
 
+          # 3. Une os dados antigos com os novos e força tipos simples do Python
           df_novas_ch = pd.DataFrame(novas_chamadas)
           df_chamadas_final = pd.concat(
               [df_chamadas_limpas, df_novas_ch], ignore_index=True
           )
 
+          df_chamadas_final["data"] = df_chamadas_final["data"].astype(str)
+          df_chamadas_final["turma"] = df_chamadas_final["turma"].astype(str)
+          df_chamadas_final["aluno_id"] = df_chamadas_final["aluno_id"].astype(str)
+          df_chamadas_final["nome"] = df_chamadas_final["nome"].astype(str)
+          df_chamadas_final["presente"] = df_chamadas_final["presente"].astype(
+              bool
+          )
+
+          # 4. Prepara o resumo da turma (oferta e visitantes)
           novo_resumo = pd.DataFrame([{
-              "data": str_data,
-              "turma": turma_prof,
-              "visitantes": num_visitantes,
-              "oferta": val_oferta,
+              "data": str(str_data),
+              "turma": str(turma_prof),
+              "visitantes": int(num_visitantes),
+              "oferta": float(val_oferta),
           }])
           df_resumo_final = pd.concat(
               [df_resumo_limpo, novo_resumo], ignore_index=True
           )
 
+          # 5. Envia para o Google Sheets
           salvar_na_planilha("Chamadas", df_chamadas_final, mode="overwrite")
           salvar_na_planilha("Resumo", df_resumo_final, mode="overwrite")
 
