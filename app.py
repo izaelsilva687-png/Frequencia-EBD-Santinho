@@ -414,8 +414,8 @@ with aba_relatorio_domingo:
 
   # Une a tabela das turmas com a linha do Total
   df_resumo_exibir = pd.concat([df_resumo_final, linha_total], ignore_index=True)
- else:
-  df_resumo_exibir = df_resumo_final
+  else:
+   df_resumo_exibir = df_resumo_final
 
  # Exibe a tabela final com o Total Geral na última linha
  st.dataframe(df_resumo_exibir, hide_index=True, use_container_width=True)
