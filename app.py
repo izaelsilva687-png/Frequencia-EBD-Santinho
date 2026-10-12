@@ -277,7 +277,7 @@ with aba_chamada:
               f" {num_visitantes} visitantes e R$ {val_oferta:.2f} de oferta)."
           )
           st.rerun()
-  # =============================================================================
+# =============================================================================
 # ABA 2: RELATÓRIO DO DOMINGO
 # =============================================================================
 with aba_relatorio_domingo:
@@ -379,10 +379,10 @@ with aba_relatorio_domingo:
       })
 
     df_resumo_final = pd.DataFrame(resumo_turmas_list)
-    # -----------------------------------------------------------------------------
-# ADICIONA A LINHA DE TOTAL GERAL NO FINAL DA TABELA
-# -----------------------------------------------------------------------------
-if not df_resumo_final.empty:
+  # -----------------------------------------------------------------------------
+  # ADICIONA A LINHA DE TOTAL GERAL NO FINAL DA TABELA
+  # -----------------------------------------------------------------------------
+  if not df_resumo_final.empty:
   # Tratamento para somar a oferta corretamente mesmo se estiver em texto
   if "Oferta (R$)" in df_resumo_final.columns:
     soma_oferta = (
