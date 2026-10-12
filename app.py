@@ -414,20 +414,20 @@ with aba_relatorio_domingo:
 
   # Une a tabela das turmas com a linha do Total
   df_resumo_exibir = pd.concat([df_resumo_final, linha_total], ignore_index=True)
-else:
+ else:
   df_resumo_exibir = df_resumo_final
 
-# Exibe a tabela final com o Total Geral na última linha
-st.dataframe(df_resumo_exibir, hide_index=True, use_container_width=True)
+ # Exibe a tabela final com o Total Geral na última linha
+ st.dataframe(df_resumo_exibir, hide_index=True, use_container_width=True)
 
-fig_comp = px.bar(
+ fig_comp = px.bar(
         df_resumo_final,
         x="Turma",
         y=["Presentes", "Visitantes"],
         title="Presença de Alunos x Visitantes por Turma",
         barmode="stack",
     )
-st.plotly_chart(fig_comp, use_container_width=True)
+ st.plotly_chart(fig_comp, use_container_width=True)
 
 # =============================================================================
 # ABA 3: HISTÓRICO DE ASSIDUIDADE (POR TURMA E POR SEMESTRE/ANO)
