@@ -383,8 +383,8 @@ with aba_relatorio_domingo:
   # ADICIONA A LINHA DE TOTAL GERAL NO FINAL DA TABELA
   # -----------------------------------------------------------------------------
   if not df_resumo_final.empty:
-  # Tratamento para somar a oferta corretamente mesmo se estiver em texto
-  if "Oferta (R$)" in df_resumo_final.columns:
+    # Tratamento para somar a oferta corretamente mesmo se estiver em texto
+    if "Oferta (R$)" in df_resumo_final.columns:
     soma_oferta = (
         pd.to_numeric(
             df_resumo_final["Oferta (R$)"]
