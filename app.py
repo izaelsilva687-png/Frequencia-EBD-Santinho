@@ -384,7 +384,7 @@ with aba_relatorio_domingo:
   # -----------------------------------------------------------------------------
   if not df_resumo_final.empty:
     # Tratamento para somar a oferta corretamente mesmo se estiver em texto
-    if "Oferta (R$)" in df_resumo_final.columns:
+   if "Oferta (R$)" in df_resumo_final.columns:
     soma_oferta = (
         pd.to_numeric(
             df_resumo_final["Oferta (R$)"]
