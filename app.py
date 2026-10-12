@@ -414,16 +414,21 @@ with aba_relatorio_domingo:
     else:
         df_resumo_exibir = df_resumo_final
 
+    # Exibe a tabela com a linha de TOTAL GERAL
     st.dataframe(df_resumo_exibir, hide_index=True, use_container_width=True)
 
- fig_comp = px.bar(
-        df_resumo_final,
-        x="Turma",
-        y=["Presentes", "Visitantes"],
-        title="Presença de Alunos x Visitantes por Turma",
-        barmode="stack",
-    )
- st.plotly_chart(fig_comp, use_container_width=True)
+    # -----------------------------------------------------------------------------
+    # GRÁFICO COMPARATIVO
+    # -----------------------------------------------------------------------------
+    if not df_resumo_final.empty:
+        fig_comp = px.bar(
+            df_resumo_final,
+            x="Turma",
+            y=["Presentes", "Ausentes", "Visitantes"],
+            barmode="group",
+            title="Comparativo de Frequência por Turma"
+        )
+        st.plotly_chart(fig_comp, use_container_width=True)
 
 # =============================================================================
 # ABA 3: HISTÓRICO DE ASSIDUIDADE (POR TURMA E POR SEMESTRE/ANO)
