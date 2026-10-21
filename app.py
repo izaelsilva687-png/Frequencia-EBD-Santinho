@@ -211,72 +211,105 @@ with aba_chamada:
         )
 
         if btn_salvar:
-          str_data = data_aula.strftime("%d/%m/%Y")
+                str_data = data_aula.strftime("%d/%m/%Y")
 
-          # 1. Remove chamadas anteriores dessa mesma turma e data (evita duplicar)
-          df_chamadas_limpas = df_chamadas[
-              ~((df_chamadas["data"] == str_data)
-              & (df_chamadas["turma"] == turma_prof))
-          ]
-          df_resumo_limpo = df_resumo_turma[
-              ~((df_resumo_turma["data"] == str_data)
-              & (df_resumo_turma["turma"] == turma_prof))
-          ]
+                # 1. Filtra removendo registros anteriores da mesma turma e data
+                df_chamadas_limpas = df_chamadas[
+                    ~(
+                        (
+                            df_chamadas["data"].astype(str).str.strip()
+                            == str(str_data).strip()
+                        )
+                        & (
+                            df_chamadas["turma"].astype(str).str.strip()
+                            == str(turma_prof).strip()
+                        )
+                    )
+                ]
+                df_resumo_limpo = df_resumo[
+                    ~(
+                        (
+                            df_resumo["data"].astype(str).str.strip()
+                            == str(str_data).strip()
+                        )
+                        & (
+                            df_resumo["turma"].astype(str).str.strip()
+                            == str(turma_prof).strip()
+                        )
+                    )
+                ]
 
-          # 2. Monta a lista de presenças convertendo para texto/booleano nativo
-          novas_chamadas = []
-          for aluno_id, esteve_presente in presencas.items():
-            df_aluno_sel = df_alunos_turma[df_alunos_turma["id"] == aluno_id]
-            nome_aluno = (
-                str(df_aluno_sel["nome"].iloc[0])
-                if not df_aluno_sel.empty
-                else "Aluno"
-            )
+                # 2. Monta a lista de presenças da chamada atual
+                novas_chamadas = []
+                for aluno_id, esteve_presente in presencas.items():
+                  df_aluno_sel = df_alunos_turma[
+                      df_alunos_turma["id"] == aluno_id
+                  ]
+                  nome_aluno = (
+                      str(df_aluno_sel["nome"].values[0])
+                      if not df_aluno_sel.empty
+                      else "Aluno"
+                  )
 
-            novas_chamadas.append({
-                "data": str(str_data),
-                "turma": str(turma_prof),
-                "aluno_id": str(aluno_id),
-                "nome": nome_aluno,
-                "presente": bool(esteve_presente),
-            })
+                  novas_chamadas.append({
+                      "data": str(str_data),
+                      "turma": str(turma_prof),
+                      "aluno_id": str(aluno_id),
+                      "nome": str(nome_aluno),
+                      "presente": bool(esteve_presente),
+                  })
 
-          # 3. Une os dados antigos com os novos e força tipos simples do Python
-          df_novas_ch = pd.DataFrame(novas_chamadas)
-          df_chamadas_final = pd.concat(
-              [df_chamadas_limpas, df_novas_ch], ignore_index=True
-          )
+                # 3. Une com o histórico e SOBREPUXADAPOIS remove duplicidades (mantendo sempre a última chamada)
+                df_novas_ch = pd.DataFrame(novas_chamadas)
+                df_chamadas_final = pd.concat(
+                    [df_chamadas_limpas, df_novas_ch], ignore_index=True
+                )
 
-          df_chamadas_final["data"] = df_chamadas_final["data"].astype(str)
-          df_chamadas_final["turma"] = df_chamadas_final["turma"].astype(str)
-          df_chamadas_final["aluno_id"] = df_chamadas_final["aluno_id"].astype(str)
-          df_chamadas_final["nome"] = df_chamadas_final["nome"].astype(str)
-          df_chamadas_final["presente"] = df_chamadas_final["presente"].astype(
-              bool
-          )
+                df_chamadas_final["data"] = df_chamadas_final["data"].astype(
+                    str
+                )
+                df_chamadas_final["turma"] = df_chamadas_final["turma"].astype(
+                    str
+                )
+                df_chamadas_final["aluno_id"] = df_chamadas_final[
+                    "aluno_id"
+                ].astype(str)
 
-          # 4. Prepara o resumo da turma (oferta e visitantes)
-          novo_resumo = pd.DataFrame([{
-              "data": str(str_data),
-              "turma": str(turma_prof),
-              "visitantes": int(num_visitantes),
-              "oferta": float(val_oferta),
-          }])
-          df_resumo_final = pd.concat(
-              [df_resumo_limpo, novo_resumo], ignore_index=True
-          )
+                # --- ELIMINA DUPLICADAS: Mantém apenas o registro mais recente por aluno no dia ---
+                df_chamadas_final = df_chamadas_final.drop_duplicates(
+                    subset=["data", "turma", "aluno_id"], keep="last"
+                )
 
-          # 5. Envia para o Google Sheets
-          salvar_na_planilha("Chamadas", df_chamadas_final, mode="overwrite")
-          salvar_na_planilha("Resumo", df_resumo_final, mode="overwrite")
+                # 4. Prepara o resumo da turma (oferta e visitantes) substituindo o anterior
+                novo_resumo = pd.DataFrame([{
+                    "data": str(str_data),
+                    "turma": str(turma_prof),
+                    "visitantes": int(num_visitantes),
+                    "oferta": float(val_oferta),
+                }])
+                df_resumo_final = pd.concat(
+                    [df_resumo_limpo, novo_resumo], ignore_index=True
+                )
 
-          total_presentes_dia = sum(presencas.values())
-          st.success(
-              f"✅ Chamada da turma '{turma_prof}' referente a {str_data} salva"
-              f" com sucesso! ({total_presentes_dia} presentes,"
-              f" {num_visitantes} visitantes e R$ {val_oferta:.2f} de oferta)."
-          )
-          st.rerun()
+                # --- ELIMINA DUPLICADAS NO RESUMO: Sobrepõe oferta e visitantes do mesmo domingo ---
+                df_resumo_final = df_resumo_final.drop_duplicates(
+                    subset=["data", "turma"], keep="last"
+                )
+
+                # 5. Salva os dados atualizados na planilha do Google Sheets
+                salvar_na_planilha(
+                    "Chamadas", df_chamadas_final, mode="overwrite"
+                )
+                salvar_na_planilha("Resumo", df_resumo_final, mode="overwrite")
+
+                total_presentes_dia = sum(presencas.values())
+                st.success(
+                    f"✅ Chamada da turma '{turma_prof}' referente a {str_data}"
+                    f" **atualizada** com sucesso! ({total_presentes_dia}"
+                    f" presentes, {num_visitantes} visitantes e R$"
+                    f" {val_oferta:.2f} de oferta)."
+                )
+                st.rerun()
 # =============================================================================
 # ABA 2: RELATÓRIO DO DOMINGO
 # =============================================================================
